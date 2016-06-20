@@ -21,20 +21,26 @@
 
 namespace OCA\DAV\CardDAV;
 
+use OCP\ILogger;
 use Sabre\CardDAV\Card;
 use Sabre\DAV\Server;
 use Sabre\DAV\ServerPlugin;
 use Sabre\HTTP\RequestInterface;
 use Sabre\HTTP\ResponseInterface;
 use Sabre\VObject\Parameter;
+use Sabre\VObject\Property\Binary;
 use Sabre\VObject\Reader;
 
 class ImageExportPlugin extends ServerPlugin {
 
-	/**
-	 * @var Server
-	 */
+	/** @var Server */
 	protected $server;
+	/** @var ILogger */
+	private $logger;
+
+	public function __construct(ILogger $logger) {
+		$this->logger = $logger;
+	}
 
 	/**
 	 * Initializes the plugin and registers event handlers
@@ -93,27 +99,41 @@ class ImageExportPlugin extends ServerPlugin {
 	function getPhoto(Card $node) {
 		// TODO: this is kind of expensive - load carddav data from database and parse it
 		//       we might want to build up a cache one day
-		$vObject = $this->readCard($node->get());
-		if (!$vObject->PHOTO) {
-			return false;
-		}
-
-		$photo = $vObject->PHOTO;
 		try {
-			/** @var Parameter $type */
-			$type = $photo->parameters()['TYPE'];
+			$vObject = $this->readCard($node->get());
+			if (!$vObject->PHOTO) {
+				return false;
+			}
+
+			$photo = $vObject->PHOTO;
+			$type = $this->getType($photo);
+
 			$val = $photo->getValue();
 			return [
-				'Content-Type' => $type->getValue(),
+				'Content-Type' => $type,
 				'body' => $val
 			];
 		} catch(\Exception $ex) {
-//			$this->logger->debug($ex->getMessage());
+			$this->logger->logException($ex);
 		}
 		return false;
 	}
 
 	private function readCard($cardData) {
 		return Reader::read($cardData);
+	}
+
+	/**
+	 * @param Binary $photo
+	 * @return Parameter
+	 */
+	private function getType($photo) {
+		$params = $photo->parameters();
+		if (isset($params['TYPE'])) {
+			/** @var Parameter $type */
+			$type = $photo->parameters()['TYPE'];
+			return 'image/' . strtolower($type->getValue());
+		}
+		return '';
 	}
 }
