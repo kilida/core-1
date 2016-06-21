@@ -74,7 +74,7 @@ class OccController extends Controller {
 			$formatter->setDecorated(false);
 			$application = new Application(\OC::$server->getConfig(), \OC::$server->getEventDispatcher(), $this->request);
 			$application->setAutoExit(false);
-			$application->loadCommands(new ArrayInput(), $output);
+			$application->loadCommands(new ArrayInput([]), $output);
 
 			$inputArray = array_merge(['command' => $command], $params);
 			$input = new ArrayInput($inputArray);
